@@ -1,0 +1,80 @@
+import axios from 'axios';
+import { TimeSummaryCols, TimeSummaryOptions } from '@/types';
+import type { ThemeName, UiVersion } from '@/types';
+import { FtWsMessageTypes } from '@/types/wsMessageTypes';
+
+export enum OpenTradeVizOptions {
+  showPill = 'showPill',
+  asTitle = 'asTitle',
+  noOpenTrades = 'noOpenTrades',
+}
+
+const notificationDefaults = {
+  [FtWsMessageTypes.entryFill]: true,
+  [FtWsMessageTypes.exitFill]: true,
+  [FtWsMessageTypes.entryCancel]: true,
+  [FtWsMessageTypes.exitCancel]: true,
+};
+
+export const useSettingsStore = defineStore('uiSettings', {
+  // other options...
+  state: () => {
+    return {
+      openTradesInTitle: OpenTradeVizOptions.showPill as string,
+      timezone: 'UTC',
+      backgroundSync: true,
+      /** Resolved theme (kept in sync by composables/theme.ts) */
+      currentTheme: 'dark' as ThemeName,
+      /** User choice: auto / light / dark. Empty = not chosen yet (falls back to currentTheme). */
+      themeMode: '' as '' | 'auto' | 'light' | 'dark',
+      _uiVersion: 'dev',
+      useHeikinAshiCandles: false,
+      showMarkArea: true,
+      /** Dashed line at the open trade's current rate on the candle chart. */
+      showCurrentPriceLine: true,
+      useReducedPairCalls: true,
+      notifications: notificationDefaults,
+      profitDistributionBins: 20,
+      confirmDialog: true,
+      chartLabelSide: 'right' as 'left' | 'right',
+      chartDefaultCandleCount: 250,
+      timeProfitPeriod: TimeSummaryOptions.daily,
+      timeProfitPreference: TimeSummaryCols.abs_profit,
+      multiPairSelection: false,
+      backtestAdditionalMetrics: ['profit_factor', 'expectancy'] as string[],
+    };
+  },
+  getters: {
+    isDarkTheme(state) {
+      return ['dark', 'bootstrap_dark'].includes(state.currentTheme);
+    },
+    chartTheme(): 'dark' | 'light' {
+      return this.isDarkTheme ? 'dark' : 'light';
+    },
+    uiVersion(state) {
+      return `${state._uiVersion}-${__COMMIT_HASH__}`;
+    },
+  },
+  actions: {
+    async loadUIVersion() {
+      if (import.meta.env.PROD) {
+        try {
+          const result = await axios.get<UiVersion>('/ui_version', {
+            withCredentials: true,
+          });
+          const { version } = result.data;
+          this._uiVersion = version ?? 'dev';
+        } catch (error) {
+          //
+        }
+      }
+    },
+  },
+  persist: {
+    key: 'ftUISettings',
+  },
+});
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useSettingsStore, import.meta.hot));
+}

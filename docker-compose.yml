@@ -1,0 +1,10 @@
+---
+services:
+  frequi:
+    build:
+      context: .
+      dockerfile: "./Dockerfile"
+    image: frequi
+    restart: unless-stopped
+    ports:
+      - "3000:80"
